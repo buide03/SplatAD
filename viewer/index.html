@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>SplatAD · So sánh ảnh gốc và render</title>
+<style>
+  :root { color-scheme: dark; font: 16px/1.5 system-ui,sans-serif; color: #edf1f4; background: #10161b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  main { max-width: 1200px; margin: auto; padding: clamp(18px,4vw,48px); }
+  header { border-bottom: 1px solid #39464f; margin-bottom: 20px; }
+  h1 { font-size: clamp(1.7rem,4vw,2.8rem); margin: .1em 0; }
+  .tag { color: #7fe2cc; letter-spacing: .12em; font-size: .8rem; font-weight: 700; }
+  p, figcaption { color: #b9c6d0; }
+  nav, .controls, #markers, .downloads { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+  button, a { color: #a9f4e1; }
+  button { background: #1c2a34; border: 1px solid #496270; border-radius: 6px; padding: .55em .9em; font: inherit; cursor: pointer; }
+  button[aria-pressed=true] { background: #7fe2cc; color: #10271f; border-color: #7fe2cc; }
+  button:disabled { opacity: .5; cursor: default; }
+  :focus-visible { outline: 3px solid #f4ce79; outline-offset: 3px; }
+  .pair { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+  figure { margin: 0; }
+  figcaption { padding: 6px 0; font-weight: 600; }
+  canvas { display: block; width: 100%; background: #20282e; border-radius: 8px; }
+  input[type=range] { flex: 1; min-width: 120px; accent-color: #7fe2cc; }
+  #status { border-left: 3px solid #f4ce79; padding: 8px 12px; }
+  @media (max-width: 570px) { .pair { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="tag">PANDASET / NERFSTUDIO</div>
+    <h1>SplatAD trên cảnh đường phố</h1>
+    <p>Đối chiếu ảnh camera PandaSet và ảnh dựng từ checkpoint tại cùng các frame giữ lại.</p>
+  </header>
+  <p id="status" role="status">Đang đọc manifest kết quả…</p>
+  <section id="viewer" hidden aria-label="So sánh ảnh">
+    <nav id="cases" aria-label="Tình huống"></nav>
+    <p id="meta"></p>
+    <div class="pair">
+      <figure><figcaption>Ảnh gốc PandaSet</figcaption><canvas id="original" role="img" aria-label="Ảnh gốc PandaSet"></canvas></figure>
+      <figure><figcaption>Ảnh dựng SplatAD</figcaption><canvas id="rendered" role="img" aria-label="Ảnh dựng SplatAD"></canvas></figure>
+    </div>
+    <div class="controls">
+      <button id="play" type="button" aria-pressed="false">Phát</button>
+      <input id="seek" type="range" min="0" max="0" value="0" aria-label="Chọn khung hình">
+      <span id="frame"></span>
+      <button id="zoom" type="button" aria-pressed="false">Phóng to đối tượng</button>
+    </div>
+    <div id="markers" aria-label="Khung hình đánh dấu"></div>
+    <p id="observation"></p>
+    <div class="downloads" id="downloads"></div>
+  </section>
+</main>
+<script>
+"use strict";
+const el = id => document.getElementById(id);
+const labels = {walking:"Người đi bộ", cycling:"Người đi xe đạp", occlusion:"Che khuất một phần"};
+const roles = {before:"Trước khi bị che", during:"Đang bị che", after:"Xuất hiện trở lại", pose_1:"Tư thế 1", pose_2:"Tư thế 2", pose_3:"Tư thế 3"};
+const streams = ["original", "rendered"];
+let manifest, selected, index = 0, generation = 0, timer = null, playing = false, zoomed = false;
+
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`Thiếu ảnh ${url}`));
+    image.src = url;
+  });
+}
+
+function draw(canvas, image, crop) {
+  let [x, y, w, h] = crop || [0, 0, 1, 1];
+  const scale = Math.min(1, 960 / (w * image.width));
+  canvas.width = Math.max(1, Math.round(w * image.width * scale));
+  canvas.height = Math.max(1, Math.round(h * image.height * scale));
+  canvas.getContext("2d").drawImage(image, x * image.width, y * image.height,
+    w * image.width, h * image.height, 0, 0, canvas.width, canvas.height);
+}
+
+function stop() {
+  clearTimeout(timer);
+  playing = false;
+  el("play").textContent = "Phát";
+  el("play").setAttribute("aria-pressed", "false");
+}
+
+async function show(next) {
+  clearTimeout(timer);
+  const token = ++generation;
+  const pair = selected.frames[next];
+  try {
+    const images = await Promise.all(streams.map(name => loadImage(pair[name])));
+    if (token !== generation) return;
+    if (images[0].width !== images[1].width || images[0].height !== images[1].height) {
+      throw new Error("Cặp ảnh có kích thước khác nhau.");
+    }
+    index = next;
+    streams.forEach((name, i) => draw(el(name), images[i], zoomed ? pair.crop : null));
+    el("status").hidden = true;
+    el("seek").value = next;
+    el("frame").textContent = `Frame ${pair.frame} · ${pair.timestamp.toFixed(3)} s`;
+    el("zoom").disabled = !pair.crop;
+    el("zoom").setAttribute("aria-pressed", String(zoomed && Boolean(pair.crop)));
+    el("observation").textContent = pair.observation || "";
+    if (playing) {
+      if (next + 1 < selected.frames.length) timer = setTimeout(() => show(next + 1), 1000 / manifest.fps);
+      else stop();
+    }
+  } catch (error) {
+    if (token !== generation) return;
+    stop();
+    el("status").hidden = false;
+    el("status").textContent = error.message;
+  }
+}
+
+function select(caseId) {
+  stop();
+  selected = manifest.cases.find(item => item.case === caseId);
+  zoomed = false;
+  el("seek").max = selected.frames.length - 1;
+  el("meta").textContent = `Sequence ${selected.sequence} · camera ${selected.camera} · track ${selected.uuid} · ${selected.checkpoint}`;
+  for (const button of el("cases").children) button.setAttribute("aria-pressed", String(button.dataset.case === caseId));
+  el("markers").replaceChildren();
+  selected.frames.forEach((pair, i) => {
+    if (!pair.role) return;
+    const button = document.createElement("button");
+    button.textContent = roles[pair.role] || pair.role;
+    button.onclick = () => { stop(); show(i); };
+    el("markers").append(button);
+  });
+  el("downloads").replaceChildren();
+  streams.forEach(name => {
+    const link = document.createElement("a");
+    link.href = selected.videos[name];
+    link.download = "";
+    link.textContent = name === "original" ? "Tải video gốc" : "Tải video dựng";
+    el("downloads").append(link);
+  });
+  show(0);
+}
+
+el("seek").oninput = event => { stop(); show(Number(event.target.value)); };
+el("zoom").onclick = () => { zoomed = !zoomed; show(index); };
+el("play").onclick = () => {
+  if (playing) { stop(); return; }
+  playing = true;
+  el("play").textContent = "Dừng";
+  el("play").setAttribute("aria-pressed", "true");
+  show(index === selected.frames.length - 1 ? 0 : index);
+};
+
+fetch("manifest.json").then(response => {
+  if (!response.ok) throw new Error("Chưa có manifest.json. Chạy cell đóng gói demo trong notebook rồi mở thư mục xuất qua HTTP.");
+  return response.json();
+}).then(data => {
+  if (data.version !== 1 || data.fps <= 0 || !Array.isArray(data.cases) ||
+      data.cases.length !== 3 || new Set(data.cases.map(item => item.case)).size !== 3 ||
+      data.cases.some(item => !labels[item.case] || !item.frames?.length)) {
+    throw new Error("Manifest cần đủ ba tình huống và các cặp ảnh từ checkpoint.");
+  }
+  manifest = data;
+  Object.entries(labels).forEach(([key, label]) => {
+    const button = document.createElement("button");
+    button.dataset.case = key;
+    button.textContent = label;
+    button.onclick = () => select(key);
+    el("cases").append(button);
+  });
+  el("viewer").hidden = false;
+  select("walking");
+}).catch(error => { el("status").textContent = error.message; });
+</script>
+</body>
+</html>

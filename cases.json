@@ -1,0 +1,32 @@
+[
+  {
+    "case": "walking",
+    "sequence": "011",
+    "camera": "front_right",
+    "uuid": "aeee4e22-788d-4595-903b-3be347d78092",
+    "start_frame": 1,
+    "end_frame": 9,
+    "keyframes": {"pose_1": 1, "pose_2": 5, "pose_3": 9},
+    "observations": {}
+  },
+  {
+    "case": "cycling",
+    "sequence": "011",
+    "camera": "front",
+    "uuid": "a9fce956-5b4d-4bc5-a0d8-8349701d4e3a",
+    "start_frame": 19,
+    "end_frame": 29,
+    "keyframes": {"pose_1": 21, "pose_2": 25, "pose_3": 29},
+    "observations": {}
+  },
+  {
+    "case": "occlusion",
+    "sequence": "011",
+    "camera": "front_right",
+    "uuid": "476224bb-ccff-4d8d-a7e2-cc8b477412bd",
+    "start_frame": 13,
+    "end_frame": 23,
+    "keyframes": {"before": 13, "during": 21, "after": 23},
+    "observations": {}
+  }
+]
