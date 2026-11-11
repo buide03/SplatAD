@@ -10,7 +10,6 @@ case "$capability" in
   *) printf 'Choose a CUDA 11.8 compatible GPU such as T4 or A100 (detected %s).\n' "$capability" >&2; exit 1 ;;
 esac
 export TORCH_CUDA_ARCH_LIST="$capability"
-export TCNN_CUDA_ARCHITECTURES="${capability/./}"
 printf 'Building for CUDA compute capability %s\n' "$capability"
 
 root=/content/splatad-runtime
@@ -43,14 +42,8 @@ export PIP_RETRIES=8
 
 neurad=aea389a936890eb48e1b43a493a52c0194559b48
 splatad=6e31ad766d39e0c33f9034a2ed772d51364b2343
-tcnn=8e6e242f36dd197134c9b9275a8e5108a8e3af78
-ready="$root/ready-$capability"
+ready="$root/ready-splatad-$capability"
 if [[ ! -f "$ready" ]]; then
-  stage="PyTorch and torchvision wheels"
-  echo "Installing PyTorch 2.0.1 and torchvision 0.15.2 for CUDA 11.8"
-  python -m pip install 'setuptools<70' wheel ninja pybind11 tomli
-  python -m pip install torch==2.0.1+cu118 torchvision==0.15.2+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
-  python -c 'import torch, torchvision; assert torch.version.cuda == "11.8"; print(torch.__version__, torchvision.__version__)'
   cat > "$root/constraints.txt" <<'EOF'
 numpy==1.26.4
 pandas==2.2.3
@@ -58,16 +51,19 @@ dataclass-wizard==0.22.3
 torch==2.0.1+cu118
 torchvision==0.15.2+cu118
 EOF
+  stage="PyTorch, torchvision and NumPy"
+  echo "Installing PyTorch 2.0.1, torchvision 0.15.2 and NumPy 1.26 for CUDA 11.8"
+  python -m pip install 'setuptools<70' wheel ninja pybind11 tomli
+  python -m pip install -c "$root/constraints.txt" numpy torch torchvision \
+    --extra-index-url https://download.pytorch.org/whl/cu118
+  python -c 'import numpy, torch, torchvision; torch.from_numpy(numpy.zeros(1)); assert torch.version.cuda == "11.8"; print(torch.__version__, torchvision.__version__, numpy.__version__)'
   stage="NeuRAD Studio source"
   if [[ ! -d "$root/neurad-studio/.git" ]]; then
     git clone https://github.com/georghess/neurad-studio.git "$root/neurad-studio"
   fi
   git -C "$root/neurad-studio" checkout --detach "$neurad"
   # Install the declared dependencies, substituting the pinned gsplat revision.
-  stage="tiny-cuda-nn build"
-  echo "Building tiny-cuda-nn for compute capability $capability"
-  python -m pip install --no-build-isolation -c "$root/constraints.txt" \
-    "git+https://github.com/NVlabs/tiny-cuda-nn.git@$tcnn#subdirectory=bindings/torch"
+  # SplatAD's LiDAR decoder uses its supported PyTorch MLP in colab_pipeline.py.
   stage="SplatAD gsplat package"
   BUILD_CUDA=0 python -m pip install --no-build-isolation -c "$root/constraints.txt" \
     "gsplat @ git+https://github.com/carlinds/splatad.git@$splatad"
@@ -89,7 +85,6 @@ import torch
 assert torch.cuda.is_available(), "PyTorch cannot access the Colab GPU"
 torch.ones(1, device="cuda").add_(1)
 torch.cuda.synchronize()
-import tinycudann
 from gsplat.cuda._backend import _C
 from gsplat.rendering import rasterization, lidar_rasterization
 assert _C is not None, "gsplat did not load its CUDA extension"
@@ -99,5 +94,6 @@ stage="Nerfstudio CLI verification"
 ns-train splatad pandaset-data --help > "$root/train-help.txt"
 ns-render dataset --help > "$root/render-help.txt"
 python -m pip freeze > "$root/environment.txt"
-printf 'neurad-studio %s\ngsplat %s\ntiny-cuda-nn %s\n' "$neurad" "$splatad" "$tcnn" > "$root/commits.txt"
+printf 'neurad-studio %s\ngsplat %s\n' "$neurad" "$splatad" > "$root/commits.txt"
+printf '%s\n' "$capability" > "$root/cuda-arch.txt"
 touch "$ready"

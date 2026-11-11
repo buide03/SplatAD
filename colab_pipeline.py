@@ -28,6 +28,9 @@ def runtime_env():
     env["CXX"] = str(PREFIX / "bin/x86_64-conda-linux-gnu-g++")
     env["CUDAHOSTCXX"] = env["CXX"]
     env["MAX_JOBS"] = "2"
+    arch_file = RUNTIME / "cuda-arch.txt"
+    if arch_file.is_file():
+        env["TORCH_CUDA_ARCH_LIST"] = arch_file.read_text(encoding="ascii").strip()
     return env
 
 
@@ -148,6 +151,7 @@ def train(spec, resume=False):
     args = ["ns-train", "splatad", "--output-dir", folder.parent, "--experiment-name", folder.name,
             "--timestamp", "run", "--vis", "tensorboard", "--max-num-iterations", remaining,
             "--steps-per-save", 250 if spec["smoke"] else 1000, "--steps-per-eval-all-images", 0,
+            "--pipeline.model.implementation", "torch",
             "--pipeline.datamanager.camera-res-scale-factor", 0.5,
             "--pipeline.datamanager.cache-images", "cpu", "--pipeline.datamanager.cache-lidars", "cpu",
             *load, "pandaset-data", "--data", spec["root"], "--sequence", spec["sequence"],

@@ -17,6 +17,8 @@ Xe tự hành ghi lại cảnh đường phố bằng camera và LiDAR. Bài th�
 3. Khi notebook báo đã lưu bản duyệt, đổi runtime sang **T4 GPU** và đặt `PHASE = "train"`, `TRAIN_STAGE = "smoke"`. Chạy lại từ đầu. Task 7 chạy thử 500 bước, xuất kết quả và kết thúc lượt chạy thử.
 4. Khi muốn train chính, chuyển sang **A100**, giữ `PHASE = "train"`, đặt `TRAIN_STAGE = "main"` và chạy lại từ đầu để train 10.000 bước, render và đóng gói demo. Môi trường cài đặt theo mốc Python 3.10, PyTorch 2.0.1 và CUDA 11.8 của repo tác giả. Khi phiên ngắt giữa một lượt train, dùng cùng dữ liệu, chọn lại lượt đó và bật `RESUME` để đọc checkpoint gần nhất. [Recipe của tác giả](https://github.com/georghess/neurad-studio/blob/main/apptainer_recipe) · [Colab FAQ](https://research.google.com/colaboratory/faq.html)
 
+Task 6 cài NumPy 1.26.4 cùng PyTorch. Task 7 chọn MLP PyTorch có sẵn cho bộ giải mã LiDAR của SplatAD. Rasterization camera và LiDAR chạy qua `gsplat` CUDA. [Cấu hình SplatAD](https://github.com/georghess/neurad-studio/blob/aea389a936890eb48e1b43a493a52c0194559b48/nerfstudio/models/splatad.py#L240)
+
 ### Các ca mặc định trong sequence `011`
 
 | Mức | Ca | Camera | Frame đánh dấu |
