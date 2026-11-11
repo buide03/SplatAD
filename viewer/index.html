@@ -4,56 +4,105 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:,">
-<title>SplatAD · So sánh ảnh gốc và render</title>
+<title>SplatAD Viewer · PandaSet</title>
 <style>
-  :root { color-scheme: dark; font: 16px/1.5 system-ui,sans-serif; color: #edf1f4; background: #10161b; }
+  :root { color-scheme: dark; font: 14px/1.5 system-ui,sans-serif; color: #eef0f4; background: #16171b; }
   * { box-sizing: border-box; }
   body { margin: 0; }
-  main { max-width: 1200px; margin: auto; padding: clamp(18px,4vw,48px); }
-  header { border-bottom: 1px solid #39464f; margin-bottom: 20px; }
-  h1 { font-size: clamp(1.7rem,4vw,2.8rem); margin: .1em 0; }
-  .tag { color: #7fe2cc; letter-spacing: .12em; font-size: .8rem; font-weight: 700; }
-  p, figcaption { color: #b9c6d0; }
-  nav, .controls, #markers, .downloads { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
-  button, a { color: #a9f4e1; }
-  button { background: #1c2a34; border: 1px solid #496270; border-radius: 6px; padding: .55em .9em; font: inherit; cursor: pointer; }
-  button[aria-pressed=true] { background: #7fe2cc; color: #10271f; border-color: #7fe2cc; }
+  main { max-width: 1720px; margin: auto; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 21px; background: #202127; border-bottom: 1px solid #34363e; }
+  h1 { font-size: 1.1rem; margin: 0; }
+  .tag { color: #b9a5ff; letter-spacing: .12em; font-size: .68rem; font-weight: 700; }
+  #badge { flex-shrink: 0; background: #363023; color: #f0cd84; border: 1px solid #685634; border-radius: 999px; padding: 3px 10px; font-size: .78rem; }
+  #badge.ready { background: #25382c; color: #b4e6be; border-color: #425e46; }
+  .workspace { display: grid; grid-template-columns: minmax(0,1fr) 285px; min-height: calc(100vh - 70px); }
+  .viewport { min-width: 0; padding: 20px; }
+  .viewport-title { display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 13px; }
+  .viewport-title span, p, figcaption { color: #adb0bd; }
+  h2, h3, p { margin: 0; }
+  h2 { font-size: .98rem; }
+  h3 { font-size: .78rem; color: #c7c9d5; text-transform: uppercase; letter-spacing: .09em; }
+  aside { min-width: 0; padding: 17px; background: #202127; border-left: 1px solid #34363e; }
+  aside section { padding: 15px 0; border-bottom: 1px solid #353740; }
+  aside section:first-child { padding-top: 0; }
+  nav { display: grid; gap: 6px; margin-top: 10px; }
+  .controls, #markers, .downloads { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  .timeline { margin-top: 16px; border: 1px solid #373943; border-radius: 8px; padding: 12px; background: #202127; }
+  button, a { color: #dbd0ff; }
+  button, select { background: #2a2c34; color: #e8e7ef; border: 1px solid #424552; border-radius: 5px; padding: .42em .65em; font: inherit; }
+  button { cursor: pointer; }
+  nav button { text-align: left; }
+  select { width: 100%; margin-top: 8px; }
+  button[aria-pressed=true] { background: #3b3055; color: #eee8ff; border-color: #9877e8; }
   button:disabled { opacity: .5; cursor: default; }
-  :focus-visible { outline: 3px solid #f4ce79; outline-offset: 3px; }
-  .pair { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
-  figure { margin: 0; }
-  figcaption { padding: 6px 0; font-weight: 600; }
-  canvas { display: block; width: 100%; background: #20282e; border-radius: 8px; }
-  input[type=range] { flex: 1; min-width: 120px; accent-color: #7fe2cc; }
-  #status { border-left: 3px solid #f4ce79; padding: 8px 12px; }
-  @media (max-width: 570px) { .pair { grid-template-columns: 1fr; } }
+  :focus-visible { outline: 2px solid #bfadff; outline-offset: 3px; }
+  .pair { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+  figure { min-width: 0; margin: 0; border: 1px solid #363843; border-radius: 8px; background: #101115; overflow: hidden; }
+  figcaption { padding: 8px 11px; background: #23252d; font-weight: 600; }
+  .canvas-slot { aspect-ratio: 16/9; display: grid; place-items: center; min-width: 0; overflow: hidden; }
+  .canvas-slot > * { grid-area: 1 / 1; }
+  canvas { display: block; width: 100%; height: 100%; object-fit: contain; }
+  .empty { display: grid; place-content: center; text-align: center; width: 100%; height: 100%; padding: 14px; background: radial-gradient(ellipse at bottom, #262330, #14151a 68%); }
+  .empty strong { color: #ddd4f9; }
+  .empty p { margin-top: 5px; font-size: .82rem; }
+  input[type=range] { flex: 1; min-width: 100px; accent-color: #ab8bff; }
+  #frame { font-variant-numeric: tabular-nums; }
+  #meta { white-space: pre-line; overflow-wrap: anywhere; font: .8rem/1.8 ui-monospace,monospace; margin-top: 8px; }
+  #status { margin-top: 13px; border-left: 2px solid #b395ff; padding: 5px 10px; }
+  #observation { margin-top: 10px; }
+  #observation:empty { display: none; }
+  .scores { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; margin: 8px 0; }
+  .scores div { padding: 6px 4px; background: #2a2b33; border-radius: 4px; text-align: center; }
+  .scores dt { color: #bdafed; font-size: .71rem; }
+  .scores dd { margin: 0; font-variant-numeric: tabular-nums; }
+  [hidden] { display: none !important; }
+  @media (max-width: 820px) { .workspace { grid-template-columns: minmax(0,1fr); } aside { border-left: 0; border-top: 1px solid #34363e; } }
+  @media (max-width: 510px) { .pair { grid-template-columns: 1fr; } .viewport { padding: 13px; } }
 </style>
 </head>
 <body>
 <main>
   <header>
-    <div class="tag">PANDASET / NERFSTUDIO</div>
-    <h1>SplatAD trên cảnh đường phố</h1>
-    <p>Đối chiếu ảnh camera PandaSet và ảnh dựng từ checkpoint tại cùng các frame giữ lại.</p>
+    <div><div class="tag">NERFSTUDIO / PANDASET</div><h1>SplatAD Viewer</h1></div>
+    <span id="badge">Chờ checkpoint</span>
   </header>
-  <p id="status" role="status">Đang đọc manifest kết quả…</p>
-  <section id="viewer" hidden aria-label="So sánh ảnh">
-    <nav id="cases" aria-label="Tình huống"></nav>
-    <p id="meta"></p>
-    <div class="pair">
-      <figure><figcaption>Ảnh gốc PandaSet</figcaption><canvas id="original" role="img" aria-label="Ảnh gốc PandaSet"></canvas></figure>
-      <figure><figcaption>Ảnh dựng SplatAD</figcaption><canvas id="rendered" role="img" aria-label="Ảnh dựng SplatAD"></canvas></figure>
-    </div>
-    <div class="controls">
-      <button id="play" type="button" aria-pressed="false">Phát</button>
-      <input id="seek" type="range" min="0" max="0" value="0" aria-label="Chọn khung hình">
-      <span id="frame"></span>
-      <button id="zoom" type="button" aria-pressed="false">Phóng to đối tượng</button>
-    </div>
-    <div id="markers" aria-label="Khung hình đánh dấu"></div>
-    <p id="observation"></p>
-    <div class="downloads" id="downloads"></div>
-  </section>
+  <div class="workspace">
+    <section class="viewport" aria-label="So sánh ảnh">
+      <div class="viewport-title"><h2>Khung nhìn camera</h2><span id="source">PandaSet · xem trước</span></div>
+      <div class="pair">
+        <figure><figcaption>Ảnh gốc PandaSet</figcaption><div class="canvas-slot">
+          <canvas id="original" hidden role="img" aria-label="Ảnh gốc PandaSet"></canvas>
+          <div class="empty" id="original-empty"><strong>Ảnh camera</strong><p>Chờ dữ liệu xem trước hoặc ảnh từ Colab.</p></div>
+        </div></figure>
+        <figure><figcaption id="render-label">Ảnh dựng SplatAD</figcaption><div class="canvas-slot">
+          <canvas id="rendered" hidden role="img" aria-label="Ảnh dựng SplatAD"></canvas>
+          <div class="empty" id="render-empty"><strong>Chờ kết quả SplatAD</strong><p>Khung này hiển thị đầu ra từ ns-render sau khi train.</p></div>
+        </div></figure>
+      </div>
+      <div class="timeline">
+        <h3>Thời gian</h3>
+        <div class="controls">
+          <button id="play" type="button" aria-pressed="false" disabled>Phát</button>
+          <input id="seek" type="range" min="0" max="0" value="0" aria-label="Chọn khung hình" disabled>
+          <span id="frame">Chưa có frame</span>
+        </div>
+        <div id="markers" aria-label="Khung hình đánh dấu"></div>
+      </div>
+      <p id="status" role="status">Đang đọc dữ liệu viewer…</p>
+      <p id="observation"></p>
+    </section>
+    <aside aria-label="Bảng điều khiển viewer">
+      <section><h3>Cảnh</h3><nav id="cases" aria-label="Tình huống"></nav><p id="meta">Checkpoint: chưa có</p></section>
+      <section><h3>Hiển thị</h3><label for="output">Đầu ra SplatAD</label>
+        <select id="output" disabled><option value="rendered">RGB</option><option value="depth">Depth</option></select>
+        <div class="controls"><button id="zoom" type="button" aria-pressed="false" disabled>Phóng to đối tượng</button></div>
+      </section>
+      <section><h3>Render và xuất</h3><p>RGB và depth lấy từ checkpoint Colab qua Nerfstudio.</p><div class="downloads" id="downloads"></div></section>
+      <section><h3>Đánh giá RGB</h3><p id="scores-hint">Chờ đánh giá frame giữ lại.</p>
+        <dl class="scores" id="scores" hidden></dl><p id="scores-mean" hidden></p>
+      </section>
+    </aside>
+  </div>
 </main>
 <script>
 "use strict";
@@ -61,7 +110,7 @@ const el = id => document.getElementById(id);
 const labels = {walking:"Người đi bộ", cycling:"Người đi xe đạp", occlusion:"Che khuất một phần"};
 const roles = {before:"Trước khi bị che", during:"Đang bị che", after:"Xuất hiện trở lại", pose_1:"Tư thế 1", pose_2:"Tư thế 2", pose_3:"Tư thế 3"};
 const streams = ["original", "rendered"];
-let manifest, selected, index = 0, generation = 0, timer = null, playing = false, zoomed = false;
+let manifest, selected, preview = false, index = 0, generation = 0, timer = null, playing = false, zoomed = false;
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -74,9 +123,8 @@ function loadImage(url) {
 
 function draw(canvas, image, crop) {
   let [x, y, w, h] = crop || [0, 0, 1, 1];
-  const scale = Math.min(1, 960 / (w * image.width));
-  canvas.width = Math.max(1, Math.round(w * image.width * scale));
-  canvas.height = Math.max(1, Math.round(h * image.height * scale));
+  canvas.width = Math.max(1, Math.round(w * image.width));
+  canvas.height = Math.max(1, Math.round(h * image.height));
   canvas.getContext("2d").drawImage(image, x * image.width, y * image.height,
     w * image.width, h * image.height, 0, 0, canvas.width, canvas.height);
 }
@@ -88,24 +136,61 @@ function stop() {
   el("play").setAttribute("aria-pressed", "false");
 }
 
+const scoreLabels = {psnr: "PSNR ↑", ssim: "SSIM ↑", lpips: "LPIPS ↓"};
+function formatScore(name, value) {
+  return value === "Infinity" ? "∞" : value.toFixed(name === "psnr" ? 2 : 3);
+}
+function showScores(pair) {
+  const scores = el("scores");
+  scores.hidden = !pair.metrics;
+  el("scores-hint").textContent = pair.metrics ? "Frame hiện tại · toàn ảnh" : "Chờ đánh giá frame giữ lại.";
+  scores.replaceChildren();
+  if (pair.metrics) for (const [name, label] of Object.entries(scoreLabels)) {
+    const block = document.createElement("div");
+    const term = document.createElement("dt");
+    const value = document.createElement("dd");
+    term.textContent = label;
+    value.textContent = formatScore(name, pair.metrics[name]);
+    block.append(term, value);
+    scores.append(block);
+  }
+  const mean = el("scores-mean");
+  mean.hidden = !selected.metrics;
+  if (selected.metrics) mean.textContent = `TB ${selected.frames.length} frame: ` + Object.keys(scoreLabels)
+    .map(name => `${name.toUpperCase()} ${formatScore(name, selected.metrics[name])}`).join(" · ");
+}
+
 async function show(next) {
   clearTimeout(timer);
   const token = ++generation;
   const pair = selected.frames[next];
   try {
-    const images = await Promise.all(streams.map(name => loadImage(pair[name])));
+    const output = el("output").value;
+    const [original, rendered] = await Promise.all([loadImage(pair.original), preview ? null : loadImage(pair[output])]);
     if (token !== generation) return;
-    if (images[0].width !== images[1].width || images[0].height !== images[1].height) {
+    if (rendered && (original.width !== rendered.width || original.height !== rendered.height)) {
       throw new Error("Cặp ảnh có kích thước khác nhau.");
     }
     index = next;
-    streams.forEach((name, i) => draw(el(name), images[i], zoomed ? pair.crop : null));
+    draw(el("original"), original, zoomed ? pair.crop : null);
+    el("original").hidden = false;
+    el("original-empty").hidden = true;
+    if (rendered) {
+      draw(el("rendered"), rendered, zoomed ? pair.crop : null);
+      el("rendered").hidden = false;
+      el("render-empty").hidden = true;
+      el("render-label").textContent = output === "depth" ? "Depth SplatAD" : "Ảnh dựng SplatAD";
+      el("rendered").setAttribute("aria-label", el("render-label").textContent);
+    }
     el("status").hidden = true;
     el("seek").value = next;
-    el("frame").textContent = `Frame ${pair.frame} · ${pair.timestamp.toFixed(3)} s`;
+    const elapsed = pair.timestamp - selected.frames[0].timestamp;
+    el("frame").textContent = `Frame ${pair.frame} · +${elapsed.toFixed(3)} s`;
+    el("frame").title = `Timestamp PandaSet: ${pair.timestamp.toFixed(6)} s`;
     el("zoom").disabled = !pair.crop;
     el("zoom").setAttribute("aria-pressed", String(zoomed && Boolean(pair.crop)));
     el("observation").textContent = pair.observation || "";
+    showScores(pair);
     if (playing) {
       if (next + 1 < selected.frames.length) timer = setTimeout(() => show(next + 1), 1000 / manifest.fps);
       else stop();
@@ -122,8 +207,13 @@ function select(caseId) {
   stop();
   selected = manifest.cases.find(item => item.case === caseId);
   zoomed = false;
+  el("output").value = "rendered";
+  el("output").options[1].disabled = !selected.frames.every(pair => pair.depth);
+  el("output").disabled = preview || el("output").options[1].disabled;
   el("seek").max = selected.frames.length - 1;
-  el("meta").textContent = `Sequence ${selected.sequence} · camera ${selected.camera} · track ${selected.uuid} · ${selected.checkpoint}`;
+  el("seek").disabled = selected.frames.length < 2;
+  el("play").disabled = selected.frames.length < 2;
+  el("meta").textContent = `Sequence: ${selected.sequence}\nCamera: ${selected.camera}\nTrack: ${selected.uuid}\nCheckpoint: ${preview ? "chưa có" : selected.checkpoint}`;
   for (const button of el("cases").children) button.setAttribute("aria-pressed", String(button.dataset.case === caseId));
   el("markers").replaceChildren();
   selected.frames.forEach((pair, i) => {
@@ -135,6 +225,7 @@ function select(caseId) {
   });
   el("downloads").replaceChildren();
   streams.forEach(name => {
+    if (!selected.videos?.[name]) return;
     const link = document.createElement("a");
     link.href = selected.videos[name];
     link.download = "";
@@ -146,6 +237,7 @@ function select(caseId) {
 
 el("seek").oninput = event => { stop(); show(Number(event.target.value)); };
 el("zoom").onclick = () => { zoomed = !zoomed; show(index); };
+el("output").onchange = () => { stop(); show(index); };
 el("play").onclick = () => {
   if (playing) { stop(); return; }
   playing = true;
@@ -154,14 +246,23 @@ el("play").onclick = () => {
   show(index === selected.frames.length - 1 ? 0 : index);
 };
 
-fetch("manifest.json").then(response => {
-  if (!response.ok) throw new Error("Chưa có manifest.json. Chạy cell đóng gói demo trong notebook rồi mở thư mục xuất qua HTTP.");
+async function loadManifest() {
+  const embedded = el("embedded-preview");
+  if (embedded) {
+    preview = true;
+    return JSON.parse(embedded.textContent);
+  }
+  const response = await fetch("manifest.json");
+  if (!response.ok) throw new Error("Mở gói xem trước PandaSet hoặc chạy Task 9 trên Colab để tạo demo từ checkpoint.");
   return response.json();
-}).then(data => {
+}
+
+loadManifest().then(data => {
   if (data.version !== 1 || data.fps <= 0 || !Array.isArray(data.cases) ||
       data.cases.length !== 3 || new Set(data.cases.map(item => item.case)).size !== 3 ||
-      data.cases.some(item => !labels[item.case] || !item.frames?.length)) {
-    throw new Error("Manifest cần đủ ba tình huống và các cặp ảnh từ checkpoint.");
+      data.cases.some(item => !labels[item.case] || !item.frames?.length ||
+        item.frames.some(pair => !pair.original || (!preview && !pair.rendered)))) {
+    throw new Error("Manifest cần đủ ba tình huống và đường dẫn ảnh hợp lệ.");
   }
   manifest = data;
   Object.entries(labels).forEach(([key, label]) => {
@@ -171,7 +272,11 @@ fetch("manifest.json").then(response => {
     button.onclick = () => select(key);
     el("cases").append(button);
   });
-  el("viewer").hidden = false;
+  if (!preview) {
+    el("badge").textContent = "Render từ checkpoint";
+    el("badge").classList.add("ready");
+    el("source").textContent = "Nerfstudio · ns-render dataset";
+  }
   select("walking");
 }).catch(error => { el("status").textContent = error.message; });
 </script>

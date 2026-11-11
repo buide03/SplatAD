@@ -42,7 +42,21 @@ Nếu cập nhật ZIP đã duyệt, mở runtime GPU mới để nạp dữ li�
 | **8. Render** | `ns-render dataset` xuất `gt-rgb`, `rgb`, `depth` và `raw-depth` trên frame giữ lại. API LiDAR của SplatAD xuất PLY thật và dự đoán trong cùng hệ tọa độ. | PNG, `.npy.gz`, PLY và `scans.json` |
 | **9. Demo web** | Ghép cặp theo camera và frame. Đóng gói PNG, MP4 và manifest cho ba ca. Ghi nhận xét sau khi xem ảnh thật và ảnh dựng. | `My Drive/SplatAD/demo.zip` |
 
-## Xem demo
+## Xem kết quả Nerfstudio
+
+**Đối chiếu cùng camera và thời điểm.** Task 8 nạp checkpoint bằng `ns-render dataset` và xuất cặp PNG `gt-rgb` / `rgb` từ các frame giữ lại. Notebook hiển thị trực tiếp các ảnh đó. Demo web dùng bố cục lấy cảm hứng từ Viser, với bảng cảnh và đầu ra bên phải, thanh thời gian và vùng đối chiếu ở giữa. Demo đọc cùng cặp PNG, cho phép đổi RGB/depth và cung cấp video MP4 để trình chiếu.
+
+**Đánh giá RGB.** Task 8 tính **PSNR** (dB, cao hơn tốt hơn), **SSIM** (cao hơn tốt hơn) và **LPIPS** (thấp hơn tốt hơn) bằng hàm đánh giá của SplatAD trong Nerfstudio. `renders/evaluation.json` chứa điểm từng ảnh và trung bình trên toàn bộ tập giữ lại của sequence. Viewer hiển thị điểm từng frame và trung bình riêng của tình huống đang xem. Các điểm tính trên toàn ảnh RGB trước khi mã hóa MP4, kể cả khi viewer đang phóng to hoặc hiển thị depth.
+
+**Khám phá cảnh 3D tương tác.** Dùng viewer Viser có sẵn trong `neurad-studio` trên máy Linux có GPU và cùng phiên bản môi trường. Chép `config.yml` của run và thư mục `nerfstudio_models` đi kèm, rồi giải nén đúng bản PandaSet đã duyệt. Từ repo này chạy:
+
+```bash
+python colab_task.py viewer /path/to/run/config.yml --data /path/to/pandaset
+```
+
+Mở [Viser trên localhost](http://127.0.0.1:7007). Lệnh trên cập nhật đường dẫn trong một cấu hình tạm rồi gọi viewer chính thức. Mặc định chọn checkpoint mới nhất. Thêm `--step` với số bước trong `renders/lidar/scans.json` để nạp đúng checkpoint của demo nếu thư mục có nhiều checkpoint. Viser cho phép đổi góc nhìn, thời điểm và độ phân giải. Dùng PNG từ `ns-render dataset` để đánh giá tại pose gốc. [Viewer chính thức của NeuRAD Studio](https://github.com/georghess/neurad-studio/blob/aea389a936890eb48e1b43a493a52c0194559b48/nerfstudio/scripts/viewer/run_viewer.py)
+
+### Mở demo ảnh và video
 
 Tải `demo.zip` từ Drive sau Task 9, giải nén vào `demo` rồi chạy từ thư mục cha:
 

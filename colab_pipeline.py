@@ -1,7 +1,9 @@
 """Orchestrate the upstream Nerfstudio CLI and package its recorded outputs."""
 
 import json
+import math
 import os
+import pickle
 import shlex
 import shutil
 import subprocess
@@ -164,8 +166,49 @@ def train(spec, resume=False):
 def render(spec, config):
     output = Path(spec["path"]) / "renders"
     run("ns-render", "dataset", "--load-config", config, "--pose-source", "test", "--output-path", output,
-        "--image-format", "png", "--rendered-output-names", "gt-rgb", "rgb", "depth", "raw-depth")
+        "--image-format", "png", "--rendered-output-names", "gt-rgb", "rgb", "depth", "raw-depth",
+        "--calculate-and-save-metrics", "True")
+    write_evaluation(Path(spec["path"]), spec["sequence"])
     return output
+
+
+IMAGE_METRICS = ("psnr", "ssim", "lpips")
+
+
+def json_score(score):
+    score = float(score)
+    if score == math.inf:
+        return "Infinity"
+    if not math.isfinite(score):
+        raise ValueError(f"Invalid image metric: {score}")
+    return score
+
+
+def mean_image_metrics(rows):
+    return {name: json_score(sum(float(row[name]) for row in rows) / len(rows)) for name in IMAGE_METRICS}
+
+
+def write_evaluation(run_dir, sequence):
+    """Join metrics from the current native render with the recorded held-out frames."""
+    rows = load_json(run_dir / "split.json")["test"]["images"]
+    if not rows:
+        raise ValueError("No held-out frames to evaluate")
+    single_camera = len({row["camera"] for row in rows}) == 1
+    with (run_dir / "renders/metrics.pkl").open("rb") as source:
+        native = pickle.load(source)  # Written by the ns-render command above.
+    frames = []
+    for row in rows:
+        key = f"{row['frame']:02d}"
+        if not single_camera:
+            key = f"{row['camera']}_camera/{key}"
+        if key not in native or not all(name in native[key] for name in IMAGE_METRICS):
+            raise ValueError(f"Missing native PSNR/SSIM/LPIPS for held-out frame {key}")
+        frames.append({**row, "metrics": {name: json_score(native[key][name]) for name in IMAGE_METRICS}})
+    write_json(run_dir / "renders/evaluation.json", {
+        "sequence": sequence, "split": "test", "scope": "full RGB image",
+        "frame_count": len(frames), "mean": mean_image_metrics([row["metrics"] for row in frames]),
+        "frames": frames,
+    })
 
 
 def write_ply(path, points):
@@ -258,6 +301,9 @@ def pack_demo(cases, runs_root, data_root, viewer_source, output, fps=5):
     for case in cases:
         run_dir = Path(runs_root) / f"{case['sequence']}-main"
         report = load_json(run_dir / "split.json")["test"]["images"]
+        evaluation_path = run_dir / "renders/evaluation.json"
+        metrics = {(row["camera"], row["frame"]): row["metrics"]
+                   for row in load_json(evaluation_path)["frames"]} if evaluation_path.is_file() else {}
         rows = sorted((row for row in report if row["camera"] == case["camera"]
                        and case["start_frame"] <= row["frame"] <= case["end_frame"]), key=lambda row: row["timestamp"])
         keyframes = {frame: role for role, frame in case["keyframes"].items()}
@@ -283,6 +329,8 @@ def pack_demo(cases, runs_root, data_root, viewer_source, output, fps=5):
                     raise ValueError(f"Invalid normalized crop for {case['case']} frame {frame}")
             item = {"frame": frame, "timestamp": row["timestamp"], "role": keyframes.get(frame),
                     "observation": observation.get("note", ""), "crop": crop}
+            if metrics:
+                item["metrics"] = metrics[(row["camera"], frame)]
             dimensions = []
             for stream, name in (("gt-rgb", "original"), ("rgb", "rendered")):
                 source = run_dir / "renders/test" / stream / rel
@@ -291,9 +339,18 @@ def pack_demo(cases, runs_root, data_root, viewer_source, output, fps=5):
                 with Image.open(dest) as image:
                     dimensions.append(image.size)
                 item[name] = dest.relative_to(output).as_posix()
-            if dimensions[0] != dimensions[1]:
-                raise ValueError(f"RGB dimensions differ for {case['case']} frame {frame}")
+            depth_source = run_dir / "renders/test/depth" / rel
+            if depth_source.is_file():
+                depth_file = media / f"depth-{i:04d}.png"
+                shutil.copyfile(depth_source, depth_file)
+                with Image.open(depth_file) as image:
+                    dimensions.append(image.size)
+                item["depth"] = depth_file.relative_to(output).as_posix()
+            if len(set(dimensions)) != 1:
+                raise ValueError(f"Image dimensions differ for {case['case']} frame {frame}")
             entry["frames"].append(item)
+        if metrics:
+            entry["metrics"] = mean_image_metrics([item["metrics"] for item in entry["frames"]])
         for name in ("original", "rendered"):
             clip = media / f"{name}.mp4"
             run("ffmpeg", "-loglevel", "error", "-y", "-framerate", fps,
