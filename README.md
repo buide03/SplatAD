@@ -14,7 +14,8 @@ Xe tự hành ghi lại cảnh đường phố bằng camera và LiDAR. Bài th�
 
 1. Tải `SplatAD_Colab.ipynb` lên Colab và đặt `SplatAD-project.zip` vào `My Drive/SplatAD/project/`. Nếu dùng bản clone đã có trên Colab, đặt `PROJECT_DIR` đến thư mục chứa `pandaset_data.py`.
 2. Chọn **CPU**, giữ `PHASE = "prepare"`, chạy các cell Task 1–5. Colab yêu cầu cấp quyền mount Drive. Notebook tải mặc định qua HTTP Range. Nếu dùng ZIP riêng đã tải, upload `pandaset_011.zip` vào `My Drive/SplatAD/datasets/` và đặt `SCAN_PAPER_SEQUENCES = False`. ZIP cần chứa `pandaset/011/…`. Có thể trỏ `LOCAL_FULL_ZIP` tới một bản `pandaset.zip` đầy đủ trên Drive để giữ bước quét.
-3. Khi notebook báo đã lưu bản duyệt, đổi runtime sang **GPU** và đặt `PHASE = "train"`. Chạy lại từ đầu để mount Drive và thực hiện Task 6–9. Môi trường cài đặt theo mốc Python 3.10, PyTorch 2.0.1 và CUDA 11.8 của repo tác giả. Chọn T4, L4 hoặc A100 nếu có. Khi phiên ngắt giữa lúc train, dùng cùng dữ liệu và bật `RESUME` để đọc checkpoint gần nhất. [Recipe của tác giả](https://github.com/georghess/neurad-studio/blob/main/apptainer_recipe) · [Colab FAQ](https://research.google.com/colaboratory/faq.html)
+3. Khi notebook báo đã lưu bản duyệt, đổi runtime sang **T4 GPU** và đặt `PHASE = "train"`, `TRAIN_STAGE = "smoke"`. Chạy lại từ đầu. Task 7 chạy thử 500 bước, xuất kết quả và kết thúc lượt chạy thử.
+4. Khi muốn train chính, chuyển sang **A100**, giữ `PHASE = "train"`, đặt `TRAIN_STAGE = "main"` và chạy lại từ đầu để train 10.000 bước, render và đóng gói demo. Môi trường cài đặt theo mốc Python 3.10, PyTorch 2.0.1 và CUDA 11.8 của repo tác giả. Khi phiên ngắt giữa một lượt train, dùng cùng dữ liệu, chọn lại lượt đó và bật `RESUME` để đọc checkpoint gần nhất. [Recipe của tác giả](https://github.com/georghess/neurad-studio/blob/main/apptainer_recipe) · [Colab FAQ](https://research.google.com/colaboratory/faq.html)
 
 ### Các ca mặc định trong sequence `011`
 
