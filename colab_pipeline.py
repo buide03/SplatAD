@@ -105,7 +105,7 @@ def audit_parser(spec):
             output = config.setup().get_dataparser_outputs(split=split)
         cameras = [{"camera": file.parent.name.removesuffix("_camera"), "frame": int(file.stem),
                     "timestamp": float(time) + float(output.time_offset)}
-                   for file, time in zip(output.image_filenames, output.cameras.times.flatten())]
+                   for file, time in zip(map(Path, output.image_filenames), output.cameras.times.flatten())]
         lidars = []
         for i, time in enumerate(output.metadata["lidars"].times.flatten()):
             timestamp = float(time) + float(output.time_offset)
