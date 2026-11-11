@@ -14,6 +14,7 @@ printf 'Building for CUDA compute capability %s\n' "$capability"
 
 root=/content/splatad-runtime
 env="$root/env"
+cuda="$root/cuda-11.8"
 stage="Python and CUDA toolchain"
 mkdir -p "$root"
 if [[ ! -x "$root/bin/micromamba" ]]; then
@@ -22,12 +23,18 @@ fi
 export MAMBA_ROOT_PREFIX="$root/mamba"
 mamba="$root/bin/micromamba"
 if [[ ! -x "$env/bin/python" ]]; then
-  "$mamba" create -y -p "$env" -c conda-forge -c nvidia/label/cuda-11.8.0 \
-    python=3.10 pip cuda-toolkit=11.8 gxx_linux-64=11 ffmpeg
+  "$mamba" create -y -p "$env" --override-channels -c conda-forge \
+    python=3.10 pip gxx_linux-64=11 ffmpeg
 fi
-export PATH="$env/bin:$PATH"
-export CUDA_HOME="$env"
-export LD_LIBRARY_PATH="$env/lib:${LD_LIBRARY_PATH:-}"
+stage="NVIDIA CUDA 11.8 compiler and headers"
+# The older toolkit metapackage has unbounded dependencies. Isolate its release channel.
+if [[ ! -x "$cuda/bin/nvcc" || ! -f "$cuda/include/cuda_runtime_api.h" ]]; then
+  "$mamba" create -y -p "$cuda" --override-channels -c nvidia/label/cuda-11.8.0 \
+    cuda-nvcc=11.8.89 cuda-libraries-dev=11.8.0
+fi
+export PATH="$cuda/bin:$env/bin:$PATH"
+export CUDA_HOME="$cuda"
+export LD_LIBRARY_PATH="$cuda/lib:$env/lib:${LD_LIBRARY_PATH:-}"
 export CC="$env/bin/x86_64-conda-linux-gnu-gcc"
 export CXX="$env/bin/x86_64-conda-linux-gnu-g++"
 export CUDAHOSTCXX="$CXX"
@@ -37,12 +44,18 @@ export PIP_DISABLE_PIP_VERSION_CHECK=1
 export PIP_DEFAULT_TIMEOUT=120
 export PIP_RETRIES=8
 "$env/bin/python" --version
-"$env/bin/nvcc" --version
+nvcc_version=$("$cuda/bin/nvcc" --version)
+printf '%s\n' "$nvcc_version"
+if [[ "$nvcc_version" != *"release 11.8,"* || ! -f "$cuda/include/cuda_runtime_api.h" ]]; then
+  printf 'Expected CUDA 11.8 nvcc and cuda_runtime_api.h under %s.\n' "$cuda" >&2
+  exit 1
+fi
 "$CXX" --version
+printf '#include <cuda_runtime_api.h>\n' | "$CXX" -x c++ -fsyntax-only -I"$cuda/include" -
 
 neurad=aea389a936890eb48e1b43a493a52c0194559b48
 splatad=6e31ad766d39e0c33f9034a2ed772d51364b2343
-ready="$root/ready-splatad-$capability"
+ready="$root/ready-splatad-cu118-$capability"
 if [[ ! -f "$ready" ]]; then
   cat > "$root/constraints.txt" <<'EOF'
 numpy==1.26.4

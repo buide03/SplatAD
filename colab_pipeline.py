@@ -17,13 +17,14 @@ from pandaset_review import box_corners, camera_data, case_track_ids, cuboid_fil
 
 RUNTIME = Path("/content/splatad-runtime")
 PREFIX = RUNTIME / "env"
+CUDA_PREFIX = RUNTIME / "cuda-11.8"
 
 
 def runtime_env():
     env = os.environ.copy()
-    env["PATH"] = f"{PREFIX / 'bin'}:{env['PATH']}"
-    env["LD_LIBRARY_PATH"] = f"{PREFIX / 'lib'}:{env.get('LD_LIBRARY_PATH', '')}"
-    env["CUDA_HOME"] = str(PREFIX)
+    env["PATH"] = f"{CUDA_PREFIX / 'bin'}:{PREFIX / 'bin'}:{env['PATH']}"
+    env["LD_LIBRARY_PATH"] = f"{CUDA_PREFIX / 'lib'}:{PREFIX / 'lib'}:{env.get('LD_LIBRARY_PATH', '')}"
+    env["CUDA_HOME"] = str(CUDA_PREFIX)
     env["CC"] = str(PREFIX / "bin/x86_64-conda-linux-gnu-gcc")
     env["CXX"] = str(PREFIX / "bin/x86_64-conda-linux-gnu-g++")
     env["CUDAHOSTCXX"] = env["CXX"]
