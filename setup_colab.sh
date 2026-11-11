@@ -35,6 +35,8 @@ if [[ ! -x "$cuda/bin/nvcc" || ! -f "$cuda/include/cuda_runtime_api.h" ]]; then
 fi
 export PATH="$cuda/bin:$env/bin:$PATH"
 export CUDA_HOME="$cuda"
+# PyTorch may pass -L for lib64, while the CUDA 11.8 packages install libcudart in lib.
+export LIBRARY_PATH="$cuda/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
 export LD_LIBRARY_PATH="$cuda/lib:$env/lib:${LD_LIBRARY_PATH:-}"
 export CC="$env/bin/x86_64-conda-linux-gnu-gcc"
 export CXX="$env/bin/x86_64-conda-linux-gnu-g++"
@@ -54,7 +56,7 @@ fi
 "$CXX" --version
 stage="CUDA compiler and linker preflight"
 printf '#include <cuda_runtime_api.h>\nint main() { int n = 0; return cudaGetDeviceCount(&n); }\n' |
-  "$CXX" -x c++ -I"$cuda/include" - -L"$cuda/lib" -lcudart -o "$root/cuda-preflight"
+  "$CXX" -x c++ -I"$cuda/include" - -L"$cuda/lib64" -lcudart -o "$root/cuda-preflight"
 "$root/cuda-preflight"
 
 neurad=aea389a936890eb48e1b43a493a52c0194559b48

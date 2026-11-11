@@ -23,6 +23,7 @@ CUDA_PREFIX = RUNTIME / "cuda-11.8"
 def runtime_env():
     env = os.environ.copy()
     env["PATH"] = f"{CUDA_PREFIX / 'bin'}:{PREFIX / 'bin'}:{env['PATH']}"
+    env["LIBRARY_PATH"] = ":".join(filter(None, (str(CUDA_PREFIX / "lib"), env.get("LIBRARY_PATH"))))
     env["LD_LIBRARY_PATH"] = f"{CUDA_PREFIX / 'lib'}:{PREFIX / 'lib'}:{env.get('LD_LIBRARY_PATH', '')}"
     env["CUDA_HOME"] = str(CUDA_PREFIX)
     env["CC"] = str(PREFIX / "bin/x86_64-conda-linux-gnu-gcc")
