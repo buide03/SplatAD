@@ -3,10 +3,10 @@
     "case": "walking",
     "sequence": "011",
     "camera": "front_right",
-    "uuid": "aeee4e22-788d-4595-903b-3be347d78092",
-    "start_frame": 1,
-    "end_frame": 9,
-    "keyframes": {"pose_1": 1, "pose_2": 5, "pose_3": 9},
+    "uuid": "4870d0f8-7f92-487f-a0b4-6ab158c88f0b",
+    "start_frame": 65,
+    "end_frame": 77,
+    "keyframes": {"pose_1": 67, "pose_2": 71, "pose_3": 77},
     "observations": {}
   },
   {
@@ -14,19 +14,40 @@
     "sequence": "011",
     "camera": "front",
     "uuid": "a9fce956-5b4d-4bc5-a0d8-8349701d4e3a",
-    "start_frame": 19,
+    "start_frame": 25,
     "end_frame": 29,
-    "keyframes": {"pose_1": 21, "pose_2": 25, "pose_3": 29},
+    "keyframes": {"pose_1": 25, "pose_2": 27, "pose_3": 29},
     "observations": {}
   },
   {
     "case": "occlusion",
     "sequence": "011",
-    "camera": "front_right",
-    "uuid": "476224bb-ccff-4d8d-a7e2-cc8b477412bd",
-    "start_frame": 13,
+    "camera": "right",
+    "uuid": "26ffec33-5025-4b92-9e8b-13968e10a120",
+    "start_frame": 17,
+    "end_frame": 21,
+    "keyframes": {"before": 17, "during": 19, "after": 21},
+    "observations": {}
+  },
+  {
+    "case": "cycling_occlusion",
+    "sequence": "011",
+    "camera": "front",
+    "uuid": "a9fce956-5b4d-4bc5-a0d8-8349701d4e3a",
+    "start_frame": 17,
     "end_frame": 23,
-    "keyframes": {"before": 13, "during": 21, "after": 23},
+    "keyframes": {"before": 17, "during": 19, "after": 23},
+    "observations": {}
+  },
+  {
+    "case": "walking_pair",
+    "sequence": "011",
+    "camera": "front_right",
+    "uuid": "aeee4e22-788d-4595-903b-3be347d78092",
+    "secondary_uuid": "d37b8e2a-7a34-4866-b0a4-58467804cf36",
+    "start_frame": 1,
+    "end_frame": 9,
+    "keyframes": {"pose_1": 1, "pose_2": 5, "pose_3": 9},
     "observations": {}
   }
 ]

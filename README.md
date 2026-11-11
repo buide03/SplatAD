@@ -16,15 +16,19 @@ Xe tự hành ghi lại cảnh đường phố bằng camera và LiDAR. Bài th�
 2. Chọn **CPU**, giữ `PHASE = "prepare"`, chạy các cell Task 1–5. Colab yêu cầu cấp quyền mount Drive. Notebook tải mặc định qua HTTP Range. Nếu dùng ZIP riêng đã tải, upload `pandaset_011.zip` vào `My Drive/SplatAD/datasets/` và đặt `SCAN_PAPER_SEQUENCES = False`. ZIP cần chứa `pandaset/011/…`. Có thể trỏ `LOCAL_FULL_ZIP` tới một bản `pandaset.zip` đầy đủ trên Drive để giữ bước quét.
 3. Khi notebook báo đã lưu bản duyệt, đổi runtime sang **GPU** và đặt `PHASE = "train"`. Chạy lại từ đầu để mount Drive và thực hiện Task 6–9. Môi trường cài đặt theo mốc Python 3.10, PyTorch 2.0.1 và CUDA 11.8 của repo tác giả. Chọn T4, L4 hoặc A100 nếu có. Khi phiên ngắt giữa lúc train, dùng cùng dữ liệu và bật `RESUME` để đọc checkpoint gần nhất. [Recipe của tác giả](https://github.com/georghess/neurad-studio/blob/main/apptainer_recipe) · [Colab FAQ](https://research.google.com/colaboratory/faq.html)
 
-### Các ca mặc định đã đối chiếu trên ảnh gốc
+### Các ca mặc định trong sequence `011`
 
-| Ca | Sequence | Camera | Frame đánh dấu |
+| Mức | Ca | Camera | Frame đánh dấu |
 |---|---|---|---|
-| Người đi bộ | `011` | `front_right` | `01`, `05`, `09` |
-| Người đi xe đạp | `011` | `front` | `21`, `25`, `29` |
-| Người đi bộ bị cột đỏ che một phần | `011` | `front_right` | `13` trước, `21` đang bị che, `23` xuất hiện trở lại |
+| Dễ | Một người đi bộ thấy rõ | `front_right` | `67`, `71`, `77` |
+| Dễ | Một người đi xe đạp thấy rõ | `front` | `25`, `27`, `29` |
+| Vừa | Một người chạy bộ bị thùng rác che phần chân | `right` | `17`, `19`, `21` |
+| Vừa | Người đi xe đạp đi qua vùng có cột và biển chắn tầm nhìn | `front` | `17`, `19`, `23` |
+| Khó | Hai người đi song song và che nhau, mỗi người có UUID riêng | `front_right` | `01`, `05`, `09` |
 
-Các UUID và khoảng frame nằm trong `cases.json`. Muốn đổi ca, sửa bản `My Drive/SplatAD/review/cases.json` sau khi đối chiếu annotation và ảnh gốc. Kiểm tra lại split ở Task 6 trước khi train.
+Các UUID và khoảng frame nằm trong `cases.json`. Nếu Drive đã có bộ ca cũ, đặt `USE_PROJECT_CASES = True` và chạy Task 2 để lưu bộ ca mới. Khi dùng phiên Colab đã giải nén gói cũ, khởi động lại phiên và chọn một `PROJECT_DIR` mới để nạp đúng mã nguồn. Kiểm tra lại split ở Task 6 trước khi train.
+
+Nếu bộ ca mới đã nằm trên Drive và bạn đã chạy Task 4, hãy chạy ô thiết lập với `PHASE = "prepare"`, rồi đến thẳng Task 5. Trong runtime mới, Task 5 tự nạp ZIP `011` và áp dụng lại các chỉnh sửa đã lưu trên Drive.
 
 Nếu cập nhật ZIP đã duyệt, mở runtime GPU mới để nạp dữ liệu mới và đổi `RUNS` trong notebook sang thư mục khác để tách checkpoint theo phiên bản annotation.
 
@@ -40,7 +44,7 @@ Nếu cập nhật ZIP đã duyệt, mở runtime GPU mới để nạp dữ li�
 | **6. Audit parser Nerfstudio** | `pandaset-data` đọc ảnh, pose, LiDAR và cuboid; ghép trajectory và chia 50% train. Bật `--include-deformable-actors True` để nạp người đi bộ. | `split.json` với frame, scan và trajectory sau parser |
 | **7. Train SplatAD** | `ns-train splatad … pandaset-data …`. Chạy thử 500 bước với một camera, Pandar64 và ảnh nửa độ phân giải, rồi chạy chính 10.000 bước mỗi sequence. | `config.yml`, checkpoint và log dưới `runs/` |
 | **8. Render** | `ns-render dataset` xuất `gt-rgb`, `rgb`, `depth` và `raw-depth` trên frame giữ lại. API LiDAR của SplatAD xuất PLY thật và dự đoán trong cùng hệ tọa độ. | PNG, `.npy.gz`, PLY và `scans.json` |
-| **9. Demo web** | Ghép cặp theo camera và frame. Đóng gói PNG, MP4 và manifest cho ba ca. Ghi nhận xét sau khi xem ảnh thật và ảnh dựng. | `My Drive/SplatAD/demo.zip` |
+| **9. Demo web** | Ghép cặp theo camera và frame. Đóng gói PNG, MP4 và manifest cho các ca đã chọn. Ghi nhận xét sau khi xem ảnh thật và ảnh dựng. | `My Drive/SplatAD/demo.zip` |
 
 ## Xem kết quả Nerfstudio
 

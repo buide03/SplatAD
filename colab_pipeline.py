@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from pandaset_review import box_corners, camera_data, cuboid_file, load_json, project, validate_cases, write_json
+from pandaset_review import box_corners, camera_data, case_track_ids, cuboid_file, load_json, project, validate_cases, write_json
 
 
 RUNTIME = Path("/content/splatad-runtime")
@@ -109,7 +109,7 @@ def audit_parser(spec):
                 raise ValueError(f"Unmatched lidar timestamp {timestamp}")
             lidars.append({"index": i, "frame": frame, "timestamp": timestamp,
                            "recorded_lidar_timestamp": recorded_lidar_times[frame]})
-        targets = {case["uuid"] for case in spec["cases"]}
+        targets = {uuid for case in spec["cases"] for uuid in case_track_ids(case)}
         trajectories = {traj["audit_uuid"]: {
             "label": traj["label"], "timestamps": (traj["timestamps"].double() + float(output.time_offset)).tolist(),
             "centers_model_world": traj["poses"][:, :3, 3].tolist(),
@@ -274,10 +274,12 @@ def projected_crop(data_root, case, frame):
     root = Path(data_root) / case["sequence"]
     folder, intrinsics, poses, _ = camera_data(root, case["camera"])
     boxes = pd.read_pickle(cuboid_file(root, frame))
-    boxes = boxes.loc[(boxes.uuid == case["uuid"]) & (boxes["cuboids.sensor_id"] != 1)]
-    if len(boxes) != 1:
+    ids = case_track_ids(case)
+    boxes = boxes.loc[boxes.uuid.isin(ids) & (boxes["cuboids.sensor_id"] != 1)]
+    if len(boxes) != len(ids) or boxes.uuid.nunique() != len(ids):
         return None
-    xy, z = project(box_corners(boxes.iloc[0]), intrinsics, poses[frame])
+    corners = np.concatenate([box_corners(box) for _, box in boxes.iterrows()])
+    xy, z = project(corners, intrinsics, poses[frame])
     if np.any(z <= 0):
         return None
     with Image.open(folder / f"{frame:02d}.jpg") as original:
@@ -311,7 +313,7 @@ def pack_demo(cases, runs_root, data_root, viewer_source, output, fps=5):
             raise ValueError(f"Missing held-out keyframe for {case['case']}")
         media = output / "media" / case["case"]
         media.mkdir(parents=True, exist_ok=True)
-        entry = {k: case[k] for k in ("case", "sequence", "camera", "uuid")}
+        entry = {k: case[k] for k in ("case", "sequence", "camera", "uuid", "secondary_uuid") if k in case}
         lidar_manifest = load_json(run_dir / "renders/lidar/scans.json")
         entry.update(checkpoint=lidar_manifest["checkpoint"], frames=[], videos={})
         single_camera = len({row["camera"] for row in report}) == 1

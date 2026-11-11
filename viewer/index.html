@@ -107,7 +107,13 @@
 <script>
 "use strict";
 const el = id => document.getElementById(id);
-const labels = {walking:"Người đi bộ", cycling:"Người đi xe đạp", occlusion:"Che khuất một phần"};
+const labels = {
+  walking: "Dễ · Một người đi bộ rõ",
+  cycling: "Dễ · Người đi xe đạp rõ",
+  occlusion: "Vừa · Một người bị che một phần",
+  cycling_occlusion: "Vừa · Người đi xe đạp bị che",
+  walking_pair: "Khó · Hai người đi bộ che nhau"
+};
 const roles = {before:"Trước khi bị che", during:"Đang bị che", after:"Xuất hiện trở lại", pose_1:"Tư thế 1", pose_2:"Tư thế 2", pose_3:"Tư thế 3"};
 const streams = ["original", "rendered"];
 let manifest, selected, preview = false, index = 0, generation = 0, timer = null, playing = false, zoomed = false;
@@ -213,7 +219,8 @@ function select(caseId) {
   el("seek").max = selected.frames.length - 1;
   el("seek").disabled = selected.frames.length < 2;
   el("play").disabled = selected.frames.length < 2;
-  el("meta").textContent = `Sequence: ${selected.sequence}\nCamera: ${selected.camera}\nTrack: ${selected.uuid}\nCheckpoint: ${preview ? "chưa có" : selected.checkpoint}`;
+  const tracks = [selected.uuid, selected.secondary_uuid].filter(Boolean).join("\n       ");
+  el("meta").textContent = `Sequence: ${selected.sequence}\nCamera: ${selected.camera}\nTrack: ${tracks}\nCheckpoint: ${preview ? "chưa có" : selected.checkpoint}`;
   for (const button of el("cases").children) button.setAttribute("aria-pressed", String(button.dataset.case === caseId));
   el("markers").replaceChildren();
   selected.frames.forEach((pair, i) => {
@@ -259,16 +266,19 @@ async function loadManifest() {
 
 loadManifest().then(data => {
   if (data.version !== 1 || data.fps <= 0 || !Array.isArray(data.cases) ||
-      data.cases.length !== 3 || new Set(data.cases.map(item => item.case)).size !== 3 ||
+      new Set(data.cases.map(item => item.case)).size !== data.cases.length ||
+      !["walking", "cycling", "occlusion"].every(key => data.cases.some(item => item.case === key)) ||
       data.cases.some(item => !labels[item.case] || !item.frames?.length ||
         item.frames.some(pair => !pair.original || (!preview && !pair.rendered)))) {
-    throw new Error("Manifest cần đủ ba tình huống và đường dẫn ảnh hợp lệ.");
+    throw new Error("Manifest thiếu tình huống bắt buộc hoặc đường dẫn ảnh hợp lệ.");
   }
   manifest = data;
   Object.entries(labels).forEach(([key, label]) => {
+    if (!data.cases.some(item => item.case === key)) return;
     const button = document.createElement("button");
     button.dataset.case = key;
-    button.textContent = label;
+    const legacy = {walking: "Người đi bộ", cycling: "Người đi xe đạp", occlusion: "Che khuất một phần"};
+    button.textContent = data.cases.length === 3 ? legacy[key] : label;
     button.onclick = () => select(key);
     el("cases").append(button);
   });

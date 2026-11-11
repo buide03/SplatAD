@@ -18,6 +18,7 @@ XYZ = ["position.x", "position.y", "position.z"]
 DIMS = ["dimensions.x", "dimensions.y", "dimensions.z"]
 GEOMETRY = XYZ + DIMS + ["yaw"]
 CASES = ("walking", "cycling", "occlusion")
+EXTRA_CASES = ("cycling_occlusion", "walking_pair")
 SIGNS = np.array([[x, y, z] for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)])
 EDGES = [(i, j) for i in range(8) for j in range(i + 1, 8) if np.count_nonzero(SIGNS[i] != SIGNS[j]) == 1]
 
@@ -60,6 +61,10 @@ def box_corners(row):
     return Rotation.from_euler("z", float(row["yaw"])).apply(local) + row[XYZ].to_numpy(dtype=float)
 
 
+def case_track_ids(case):
+    return (case["uuid"], case["secondary_uuid"]) if "secondary_uuid" in case else (case["uuid"],)
+
+
 def overlay(root, camera, frame, track_uuid=None, show_lidar=True):
     folder, intrinsics, poses, times = camera_data(root, camera)
     img = Image.open(folder / f"{frame:02d}.jpg").convert("RGB")
@@ -75,14 +80,17 @@ def overlay(root, camera, frame, track_uuid=None, show_lidar=True):
         draw.point([tuple(p) for p in xy[visible]], fill="#5ce9fe")
     boxes = pd.read_pickle(cuboid_file(root, frame))
     boxes = boxes.loc[~boxes.stationary & (boxes["cuboids.sensor_id"] != 1)]
+    colors = {}
     if track_uuid is not None:
-        boxes = boxes.loc[boxes.uuid == track_uuid]
+        ids = (track_uuid,) if isinstance(track_uuid, str) else track_uuid
+        boxes = boxes.loc[boxes.uuid.isin(ids)]
+        colors = dict(zip(ids, ("#f5cb52", "#a8e173")))
     for _, box in boxes.iterrows():
         xy, z = project(box_corners(box), intrinsics, poses[frame])
         if (z <= 0).any() or (xy.max(axis=0) < 0).any() or (xy.min(axis=0) >= img.size).any():
             continue
         for a, b in EDGES:
-            draw.line([tuple(xy[a]), tuple(xy[b])], fill="#f5cb52", width=3)
+            draw.line([tuple(xy[a]), tuple(xy[b])], fill=colors.get(box.uuid, "#f5cb52"), width=3)
         anchor = tuple(np.clip(xy.min(axis=0), (0, 0), (img.width - 1, img.height - 1)))
         draw.text(anchor, f"{box.label} {box.uuid[:8]}", fill="#ffffff", stroke_width=2, stroke_fill="#000000")
     return img
@@ -94,7 +102,7 @@ def write_overlay_clip(root, case, output, fps=5):
 
     with tempfile.TemporaryDirectory() as temp:
         for index, frame in enumerate(range(case["start_frame"], case["end_frame"] + 1)):
-            img = overlay(root, case["camera"], frame, case["uuid"], show_lidar=False)
+            img = overlay(root, case["camera"], frame, case_track_ids(case), show_lidar=False)
             ImageDraw.Draw(img).text((16, 16), f"Frame {frame:02d}", fill="white", stroke_width=2, stroke_fill="black")
             img.thumbnail((960, 540))
             img.save(Path(temp) / f"{index:04d}.png")
@@ -122,15 +130,20 @@ def track_table(root, uuid):
 
 def validate_cases(cases, required=True):
     names = [case["case"] for case in cases]
-    if len(names) != len(set(names)) or set(names) - set(CASES) or (required and set(names) != set(CASES)):
-        raise ValueError("Select one case each for walking, cycling and occlusion")
+    if len(names) != len(set(names)) or set(names) - set(CASES + EXTRA_CASES) or (required and not set(CASES).issubset(names)):
+        raise ValueError("Use unique supported cases and include walking, cycling and occlusion")
     for case in cases:
         if (not isinstance(case["sequence"], str) or len(case["sequence"]) != 3 or not case["sequence"].isdigit()
                 or case["camera"] not in CAMERAS or not str(case["uuid"]).strip()
                 or not 0 <= case["start_frame"] < case["end_frame"] < 80):
             raise ValueError(f"Invalid case: {case}")
         frames = case["keyframes"]
-        if set(frames) != ({"before", "during", "after"} if case["case"] == "occlusion" else {"pose_1", "pose_2", "pose_3"}):
+        ids = case_track_ids(case)
+        if (len(ids) != (2 if case["case"] == "walking_pair" else 1)
+                or len(set(ids)) != len(ids) or any(not isinstance(uuid, str) or not uuid.strip() for uuid in ids)):
+            raise ValueError(f"Invalid track IDs for {case['case']}")
+        occluded = case["case"] in {"occlusion", "cycling_occlusion"}
+        if set(frames) != ({"before", "during", "after"} if occluded else {"pose_1", "pose_2", "pose_3"}):
             raise ValueError(f"Set three named keyframes for {case['case']}")
         if list(frames.values()) != sorted(set(frames.values())) or any(
             type(frame) is not int or not case["start_frame"] <= frame <= case["end_frame"] for frame in frames.values()
